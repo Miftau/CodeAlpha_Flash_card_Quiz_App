@@ -6,13 +6,23 @@ import {
   TouchableOpacity,
   View,
   StyleSheet,
+  PanResponder,
+  Dimensions,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useFlashcards } from '../src/context/FlashcardContext';
 
 // ─── Card Flip Component ──────────────────────────────────────────────────────
-function FlipCard({ card, isFlipped, onFlip }) {
+const SCREEN_WIDTH = Dimensions.get('window').width;
+
+function FlipCard({ card, isFlipped, onFlip, onAnswer }) {
   const anim = useRef(new Animated.Value(0)).current;
+  const pan = useRef(new Animated.ValueXY()).current;
+
+  // Reset position for new card
+  useEffect(() => {
+    pan.setValue({ x: 0, y: 0 });
+  }, [card]);
 
   useEffect(() => {
     Animated.spring(anim, {
@@ -34,8 +44,38 @@ function FlipCard({ card, isFlipped, onFlip }) {
   const frontOpacity = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0, 0] });
   const backOpacity = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, 1] });
 
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (e, gesture) => Math.abs(gesture.dx) > 10 || Math.abs(gesture.dy) > 10,
+      onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false }),
+      onPanResponderRelease: (e, gesture) => {
+        if (gesture.dx > 120) {
+          Animated.timing(pan, { toValue: { x: SCREEN_WIDTH * 1.5, y: gesture.dy }, duration: 250, useNativeDriver: true }).start(() => onAnswer(true));
+        } else if (gesture.dx < -120) {
+          Animated.timing(pan, { toValue: { x: -SCREEN_WIDTH * 1.5, y: gesture.dy }, duration: 250, useNativeDriver: true }).start(() => onAnswer(false));
+        } else {
+          Animated.spring(pan, { toValue: { x: 0, y: 0 }, friction: 5, useNativeDriver: true }).start();
+        }
+      }
+    })
+  ).current;
+
+  const panRotate = pan.x.interpolate({
+    inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
+    outputRange: ['-15deg', '0deg', '15deg'],
+    extrapolate: 'clamp',
+  });
+
   return (
-    <TouchableOpacity activeOpacity={0.9} onPress={onFlip} style={styles.cardWrapper}>
+    <Animated.View
+      {...panResponder.panHandlers}
+      style={[
+        styles.cardWrapper,
+        { transform: [{ translateX: pan.x }, { translateY: pan.y }, { rotate: panRotate }] }
+      ]}
+    >
+      <TouchableOpacity activeOpacity={0.9} onPress={onFlip} style={{ width: '100%', height: '100%' }}>
       {/* Front — Question */}
       <Animated.View
         style={[
@@ -65,7 +105,8 @@ function FlipCard({ card, isFlipped, onFlip }) {
           </View>
         ) : null}
       </Animated.View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -77,10 +118,10 @@ function ResultsScreen({ correct, total, onRetry, onHome }) {
     pct === 100
       ? 'Perfect score!'
       : pct >= 70
-      ? 'Great job!'
-      : pct >= 40
-      ? 'Keep practising!'
-      : "You'll get there!";
+        ? 'Great job!'
+        : pct >= 40
+          ? 'Keep practising!'
+          : "You'll get there!";
 
   return (
     <View className="flex-1 bg-light items-center justify-center px-6">
@@ -117,9 +158,16 @@ function ResultsScreen({ correct, total, onRetry, onHome }) {
 // ─── Quiz Screen ──────────────────────────────────────────────────────────────
 export default function QuizScreen() {
   const { cards } = useFlashcards();
+  const { category } = useLocalSearchParams();
 
-  // Shuffle cards once on mount
-  const [deck] = useState(() => [...cards].sort(() => Math.random() - 0.5));
+  // Shuffle cards once on mount and filter by category
+  const [deck] = useState(() => {
+    let filtered = cards;
+    if (category && category !== 'All') {
+      filtered = cards.filter(c => c.category === category);
+    }
+    return [...filtered].sort(() => Math.random() - 0.5);
+  });
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [correct, setCorrect] = useState(0);
@@ -211,6 +259,7 @@ export default function QuizScreen() {
         card={currentCard}
         isFlipped={isFlipped}
         onFlip={handleFlip}
+        onAnswer={handleAnswer}
       />
 
       {/* Answer buttons — show only when flipped */}
