@@ -51,11 +51,11 @@ function FlipCard({ card, isFlipped, onFlip, onAnswer }) {
       onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false }),
       onPanResponderRelease: (e, gesture) => {
         if (gesture.dx > 120) {
-          Animated.timing(pan, { toValue: { x: SCREEN_WIDTH * 1.5, y: gesture.dy }, duration: 250, useNativeDriver: true }).start(() => onAnswer(true));
+          Animated.timing(pan, { toValue: { x: SCREEN_WIDTH * 1.5, y: gesture.dy }, duration: 250, useNativeDriver: false }).start(() => onAnswer(true));
         } else if (gesture.dx < -120) {
-          Animated.timing(pan, { toValue: { x: -SCREEN_WIDTH * 1.5, y: gesture.dy }, duration: 250, useNativeDriver: true }).start(() => onAnswer(false));
+          Animated.timing(pan, { toValue: { x: -SCREEN_WIDTH * 1.5, y: gesture.dy }, duration: 250, useNativeDriver: false }).start(() => onAnswer(false));
         } else {
-          Animated.spring(pan, { toValue: { x: 0, y: 0 }, friction: 5, useNativeDriver: true }).start();
+          Animated.spring(pan, { toValue: { x: 0, y: 0 }, friction: 5, useNativeDriver: false }).start();
         }
       }
     })
