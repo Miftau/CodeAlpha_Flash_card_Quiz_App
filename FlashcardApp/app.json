@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "FlashcardApp",
-    "slug": "FlashcardApp",
+    "slug": "flash-quiz",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -43,6 +43,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9d4731c4-b157-4a81-9c22-9aa7af32654d"
+      }
+    },
+    "owner": "yttriumpro"
   }
 }
