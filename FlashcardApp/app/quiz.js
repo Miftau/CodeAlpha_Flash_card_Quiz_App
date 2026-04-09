@@ -15,7 +15,7 @@ import { useFlashcards } from '../src/context/FlashcardContext';
 // ─── Card Flip Component ──────────────────────────────────────────────────────
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-function FlipCard({ card, isFlipped, onFlip, onAnswer }) {
+function FlipCard({ card, isFlipped, onFlip, onAnswer, selectedOption, onSelect, isConfirmed, result }) {
   const anim = useRef(new Animated.Value(0)).current;
   const pan = useRef(new Animated.ValueXY()).current;
 
@@ -75,7 +75,12 @@ function FlipCard({ card, isFlipped, onFlip, onAnswer }) {
         { transform: [{ translateX: pan.x }, { translateY: pan.y }, { rotate: panRotate }] }
       ]}
     >
-      <TouchableOpacity activeOpacity={0.9} onPress={onFlip} style={{ width: '100%', height: '100%' }}>
+      <TouchableOpacity 
+        activeOpacity={0.9} 
+        onPress={card.options?.length > 0 ? null : onFlip} 
+        style={{ width: '100%', height: '100%' }}
+        disabled={isFlipped || (card.options?.length > 0 && !isConfirmed)}
+      >
       {/* Front — Question */}
       <Animated.View
         style={[
@@ -85,8 +90,49 @@ function FlipCard({ card, isFlipped, onFlip, onAnswer }) {
         ]}
       >
         <Text style={styles.cardLabel}>QUESTION</Text>
-        <Text style={styles.cardText}>{card.question}</Text>
-        <Text style={styles.tapHint}>Tap to reveal answer</Text>
+        <Text style={[styles.cardText, card.options?.length > 0 && { fontSize: 18, marginBottom: 16 }]}>
+          {card.question}
+        </Text>
+        
+        {card.options?.length > 0 ? (
+          <View style={styles.optionsContainer}>
+            {card.options.map((option, idx) => {
+              const isSelected = selectedOption === option;
+              const isCorrect = option === card.answer;
+              let backgroundColor = '#F5F7FA';
+              let textColor = '#2D3436';
+              let borderColor = 'transparent';
+
+              if (isSelected && !isConfirmed) {
+                backgroundColor = '#E6F4FE';
+                borderColor = '#0984E3';
+              } else if (isConfirmed) {
+                if (isCorrect) {
+                  backgroundColor = '#E1F7E5';
+                  borderColor = '#27AE60';
+                } else if (isSelected) {
+                  backgroundColor = '#FFEAEA';
+                  borderColor = '#EB5757';
+                }
+              }
+
+              return (
+                <TouchableOpacity
+                  key={idx}
+                  style={[styles.optionBtn, { backgroundColor, borderColor, borderWidth: 1 }]}
+                  onPress={() => !isConfirmed && onSelect(option)}
+                  disabled={isConfirmed}
+                >
+                  <Text style={[styles.optionText, { color: textColor }]}>{option}</Text>
+                  {isConfirmed && isCorrect && <Text style={{marginLeft: 4}}>✅</Text>}
+                  {isConfirmed && isSelected && !isCorrect && <Text style={{marginLeft: 4}}>❌</Text>}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : (
+          <Text style={styles.tapHint}>Tap to reveal answer</Text>
+        )}
       </Animated.View>
 
       {/* Back — Answer */}
@@ -173,6 +219,10 @@ export default function QuizScreen() {
   const [correct, setCorrect] = useState(0);
   const [showResults, setShowResults] = useState(false);
 
+  // MCQ State
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [isConfirmed, setIsConfirmed] = useState(false);
+
   const currentCard = deck[currentIndex];
   const progress = (currentIndex / deck.length) * 100;
 
@@ -186,7 +236,33 @@ export default function QuizScreen() {
     if (currentIndex + 1 >= deck.length) {
       setShowResults(true);
     } else {
+      // Reset states for next card
       setIsFlipped(false);
+      setSelectedOption(null);
+      setIsConfirmed(false);
+      setTimeout(() => setCurrentIndex((i) => i + 1), 150);
+    }
+  }
+
+  function handleConfirm() {
+    if (!selectedOption) return;
+    setIsConfirmed(true);
+    const wasCorrect = selectedOption === currentCard.answer;
+    if (wasCorrect) setCorrect((c) => c + 1);
+
+    // After a delay, show the back or move to next
+    setTimeout(() => {
+      setIsFlipped(true);
+    }, 1000);
+  }
+
+  function handleNext() {
+    if (currentIndex + 1 >= deck.length) {
+      setShowResults(true);
+    } else {
+      setIsFlipped(false);
+      setSelectedOption(null);
+      setIsConfirmed(false);
       setTimeout(() => setCurrentIndex((i) => i + 1), 150);
     }
   }
@@ -260,10 +336,36 @@ export default function QuizScreen() {
         isFlipped={isFlipped}
         onFlip={handleFlip}
         onAnswer={handleAnswer}
+        selectedOption={selectedOption}
+        onSelect={setSelectedOption}
+        isConfirmed={isConfirmed}
       />
 
-      {/* Answer buttons — show only when flipped */}
-      {isFlipped && (
+      {/* Confirmation Button for MCQ */}
+      {currentCard.options?.length > 0 && !isConfirmed && (
+        <TouchableOpacity
+          className={`mt-6 py-4 rounded-2xl items-center shadow-lg ${selectedOption ? 'bg-primary' : 'bg-gray-300'}`}
+          onPress={handleConfirm}
+          disabled={!selectedOption}
+        >
+          <Text className="text-white font-bold text-lg">
+            {selectedOption ? 'Confirm Choice' : 'Select an Option'}
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Next button for MCQ after confirmation */}
+      {isConfirmed && isFlipped && (
+        <TouchableOpacity
+          className="mt-6 bg-secondary py-4 rounded-2xl items-center shadow-lg"
+          onPress={handleNext}
+        >
+          <Text className="text-white font-bold text-lg">Next Card ➔</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Answer buttons — show only for non-MCQ cards when flipped */}
+      {(!(currentCard.options?.length > 0)) && isFlipped && (
         <View className="flex-row gap-4 mt-6">
           <TouchableOpacity
             className="flex-1 bg-danger py-4 rounded-2xl items-center shadow"
@@ -280,7 +382,7 @@ export default function QuizScreen() {
         </View>
       )}
 
-      {!isFlipped && (
+      {!isFlipped && !(currentCard.options?.length > 0) && (
         <Text className="text-gray text-center text-sm mt-6">
           Tap the card to flip it and reveal the answer
         </Text>
@@ -292,7 +394,7 @@ export default function QuizScreen() {
 // ─── Styles (only for the animated flip card which needs StyleSheet) ─────────
 const styles = StyleSheet.create({
   cardWrapper: {
-    height: 300,
+    height: 420,
     position: 'relative',
   },
   card: {
@@ -352,5 +454,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#fff',
     fontWeight: '600',
+  },
+  optionsContainer: {
+    width: '100%',
+    gap: 8,
+  },
+  optionBtn: {
+    padding: 12,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  optionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
   },
 });

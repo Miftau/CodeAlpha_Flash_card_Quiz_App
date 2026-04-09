@@ -5,17 +5,17 @@ import { loadCards, saveCards } from '../utils/storage';
 // ─── Default seed cards so the app is not empty on first launch ──────────────
 const DEFAULT_CARDS = [
   // Web Dev
-  { id: '1', question: 'What does HTML stand for?', answer: 'HyperText Markup Language', category: 'Web Dev' },
-  { id: '2', question: 'What does CSS stand for?', answer: 'Cascading Style Sheets', category: 'Web Dev' },
-  { id: '3', question: 'What does API stand for?', answer: 'Application Programming Interface', category: 'Web Dev' },
-  { id: '4', question: 'What is the standard port for HTTP?', answer: '80', category: 'Web Dev' },
-  { id: '5', question: 'What command initializes a new Git repository?', answer: 'git init', category: 'Web Dev' },
+  { id: '1', question: 'What does HTML stand for?', answer: 'HyperText Markup Language', category: 'Web Dev', options: ['HyperText Markup Language', 'HyperTransfer Markup Language', 'HighText Machine Language', 'HyperTool Multi Language'] },
+  { id: '2', question: 'What does CSS stand for?', answer: 'Cascading Style Sheets', category: 'Web Dev', options: ['Cascading Style Sheets', 'Creative Style System', 'Computer Style Sheets', 'Colorful Style Sheets'] },
+  { id: '3', question: 'What does API stand for?', answer: 'Application Programming Interface', category: 'Web Dev', options: ['Application Programming Interface', 'Advanced Program Integration', 'Automated Protocol Interface', 'App Processing Information'] },
+  { id: '4', question: 'What is the standard port for HTTP?', answer: '80', category: 'Web Dev', options: ['80', '443', '21', '8080'] },
+  { id: '5', question: 'What command initializes a new Git repository?', answer: 'git init', category: 'Web Dev', options: ['git init', 'git start', 'git new', 'git setup'] },
 
   // Geography
-  { id: '6', question: 'What is the capital of France?', answer: 'Paris', category: 'Geography' },
-  { id: '7', question: 'Which continent is the Sahara Desert located on?', answer: 'Africa', category: 'Geography' },
-  { id: '8', question: 'What is the longest river in the world?', answer: 'The Nile', category: 'Geography' },
-  { id: '9', question: 'Which country has the largest population?', answer: 'India (or China)', category: 'Geography' },
+  { id: '6', question: 'What is the capital of France?', answer: 'Paris', category: 'Geography', options: ['Paris', 'London', 'Berlin', 'Madrid'] },
+  { id: '7', question: 'Which continent is the Sahara Desert located on?', answer: 'Africa', category: 'Geography', options: ['Africa', 'Asia', 'South America', 'Australia'] },
+  { id: '8', question: 'What is the longest river in the world?', answer: 'The Nile', category: 'Geography', options: ['The Nile', 'The Amazon', 'The Yangtze', 'The Mississippi'] },
+  { id: '9', question: 'Which country has the largest population?', answer: 'India', category: 'Geography', options: ['India', 'China', 'USA', 'Indonesia'] },
 
   // Math
   { id: '10', question: 'What is 2 to the power of 10?', answer: '1024', category: 'Math' },
@@ -74,12 +74,13 @@ export function FlashcardProvider({ children }) {
   }, [cards, isLoaded]);
 
   // ─── CRUD helpers ──────────────────────────────────────────────────────────
-  function addCard({ question, answer, category = 'General' }) {
+  function addCard({ question, answer, category = 'General', options = [] }) {
     const newCard = {
       id: Date.now().toString(),
       question: question.trim(),
       answer: answer.trim(),
       category: category.trim() || 'General',
+      options: options.map(o => o.trim()).filter(o => o !== ''),
     };
     setCards((prev) => [...prev, newCard]);
   }
@@ -93,6 +94,7 @@ export function FlashcardProvider({ children }) {
               question: updates.question?.trim() ?? c.question,
               answer: updates.answer?.trim() ?? c.answer,
               category: updates.category?.trim() ?? c.category,
+              options: updates.options ? updates.options.map(o => o.trim()).filter(o => o !== '') : c.options,
             }
           : c
       )

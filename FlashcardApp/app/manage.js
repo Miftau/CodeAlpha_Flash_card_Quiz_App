@@ -19,6 +19,7 @@ function CardModal({ visible, initial, onSave, onClose }) {
   const [question, setQuestion] = useState(initial?.question ?? '');
   const [answer, setAnswer] = useState(initial?.answer ?? '');
   const [category, setCategory] = useState(initial?.category ?? '');
+  const [options, setOptions] = useState(initial?.options ?? ['', '', '', '']);
 
   const isEdit = !!initial;
 
@@ -31,7 +32,14 @@ function CardModal({ visible, initial, onSave, onClose }) {
       Alert.alert('Missing field', 'Please enter an answer.');
       return;
     }
-    onSave({ question, answer, category });
+
+    const filledOptions = options.map(o => o.trim()).filter(o => o !== '');
+    if (filledOptions.length > 0 && !filledOptions.includes(answer.trim())) {
+      Alert.alert('Invalid options', 'The answer must be one of the multiple choice options.');
+      return;
+    }
+
+    onSave({ question, answer, category, options: filledOptions });
     onClose();
   }
 
@@ -68,12 +76,30 @@ function CardModal({ visible, initial, onSave, onClose }) {
 
           <Text style={styles.label}>Category (optional)</Text>
           <TextInput
-            style={[styles.input, { marginBottom: 20 }]}
+            style={styles.input}
             placeholder="e.g. Geography"
             placeholderTextColor="#b2bec3"
             value={category}
             onChangeText={setCategory}
           />
+
+          <Text style={styles.label}>Multiple Choice Options (optional)</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+            {options.map((opt, i) => (
+              <TextInput
+                key={i}
+                style={[styles.input, { flexBasis: '48%', marginBottom: 0 }]}
+                placeholder={`Option ${i + 1}`}
+                placeholderTextColor="#b2bec3"
+                value={opt}
+                onChangeText={(text) => {
+                  const newOpts = [...options];
+                  newOpts[i] = text;
+                  setOptions(newOpts);
+                }}
+              />
+            ))}
+          </View>
 
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <TouchableOpacity
@@ -113,6 +139,11 @@ function CardRow({ card, onEdit, onDelete }) {
             <Text style={styles.badgeText}>{card.category}</Text>
           </View>
         ) : null}
+        {card.options?.length > 0 ? (
+          <View style={[styles.badge, { backgroundColor: '#E1F7E5' }]}>
+            <Text style={[styles.badgeText, { color: '#27AE60' }]}>MCQ</Text>
+          </View>
+        ) : null}
       </View>
       <View style={{ gap: 8 }}>
         <TouchableOpacity style={styles.iconBtn} onPress={onEdit}>
@@ -144,11 +175,11 @@ export default function ManageScreen() {
     setModalVisible(true);
   }
 
-  function handleSave({ question, answer, category }) {
+  function handleSave({ question, answer, category, options }) {
     if (editTarget) {
-      updateCard(editTarget.id, { question, answer, category });
+      updateCard(editTarget.id, { question, answer, category, options });
     } else {
-      addCard({ question, answer, category });
+      addCard({ question, answer, category, options });
     }
   }
 
